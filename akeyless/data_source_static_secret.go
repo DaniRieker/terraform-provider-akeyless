@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/akeylesslabs/akeyless-go/v3"
+	"github.com/akeylesslabs/akeyless-go/v3"	
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -19,6 +19,12 @@ func dataSourceStaticSecret() *schema.Resource {
 				Required:    true,
 				Description: "The path where the secret is stored. Defaults to the latest version.",
 			},
+			"get_metadata": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Default:     false,
+				Description: "Should the metadata like description and tags be given back? Defaults to false.",
+			},
 			"version": {
 				Type:        schema.TypeInt,
 				Computed:    true,
@@ -30,6 +36,17 @@ func dataSourceStaticSecret() *schema.Resource {
 				Sensitive:   true,
 				Description: "The secret contents.",
 			},
+			"description": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "Description of the object",
+			},
+			"tags": {
+				Type:        schema.TypeSet,
+				Computed:    true,
+				Description: "List of the tags attached to this secret. To specify multiple tags use argument multiple times: -t Tag1 -t Tag2",
+				Elem:        &schema.Schema{Type: schema.TypeString},
+			},
 		},
 	}
 }
@@ -40,6 +57,7 @@ func dataSourceStaticSecretRead(d *schema.ResourceData, m interface{}) error {
 	token := *provider.token
 
 	path := d.Get("path").(string)
+	getDescription := d.Get("get_metadata").(bool)
 
 	var apiErr akeyless.GenericOpenAPIError
 	ctx := context.Background()
@@ -72,5 +90,32 @@ func dataSourceStaticSecretRead(d *schema.ResourceData, m interface{}) error {
 
 	d.SetId(path)
 
+	if getDescription {
+		gsdBody := akeyless.DescribeItem{
+			Name:         path,
+			ShowVersions: akeyless.PtrBool(true),
+			Token:        &token,
+		}
+	
+		itemOut, _, err := client.DescribeItem(ctx).Body(gsdBody).Execute()
+		if err != nil {
+			return err
+		}
+	
+		if itemOut.ItemMetadata != nil {
+			err = d.Set("description", *itemOut.ItemMetadata)
+			if err != nil {
+				return err
+			}
+		}
+
+		if itemOut.ItemTags != nil {
+			err = d.Set("tags", *itemOut.ItemTags)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	
 	return nil
 }

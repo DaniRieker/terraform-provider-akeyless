@@ -25,9 +25,15 @@ data "akeyless_static_secret" "secret" {
 
 - `path` (String) The path where the secret is stored. Defaults to the latest version.
 
+### Optional
+
+- `get_metadata` (Boolean) Should the metadata like description and tags be given back? Defaults to false.
+
 ### Read-Only
 
+- `description` (String) Description of the object
 - `id` (String) The ID of this resource.
+- `tags` (Set of String) List of the tags attached to this secret. To specify multiple tags use argument multiple times: -t Tag1 -t Tag2
 - `value` (String, Sensitive) The secret contents.
 - `version` (Number) The version of the secret.
 
